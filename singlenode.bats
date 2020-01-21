@@ -2,11 +2,11 @@
 
 load test_helper
 
-@test "Test: Install plugin for driver ($driver)" {
-  #skip "Faster for rev during development without it - leave driver installed"
-  run $prefix docker plugin install --grant-all-permissions $driver $pluginopts
-  assert_success
-}
+#@test "Test: Install plugin for driver ($driver)" {
+ # #skip "Faster for rev during development without it - leave driver installed"
+  #run $prefix docker plugin install --grant-all-permissions $driver $pluginopts 
+# assert_success
+#}
 
 @test "Test: Create volume using driver ($driver)" {
   run $prefix docker volume create --driver $driver $createopts testvol
@@ -14,6 +14,7 @@ load test_helper
 }
 
 @test "Test: Confirm volume is created (volume ls) using driver ($driver)" {
+  sleep 20s
   run $prefix docker volume ls
   assert_line --partial "testvol"
 }
@@ -29,27 +30,29 @@ load test_helper
 }
 
 @test "Write a textfile to the volume" {
-  run $prefix -t 'docker exec -it mounter /bin/bash -c "echo \"testdata\" > /data/foo.txt"'
+  sleep 10s
+  run $prefix docker exec -it mounter /bin/bash -c "echo \"testdata\" > /data/foo.txt"
   assert_success
 }
 
 @test "Confirm textfile contents on the volume" {
-  run $prefix -t docker exec -it mounter cat /data/foo.txt
+  run $prefix docker exec -it mounter cat /data/foo.txt
   assert_line --partial "testdata"
 }
 
 @test "Create a binary file" {
-  run $prefix -t docker exec -it 'mounter dd if=/dev/urandom of=/data/random bs=10M count=1'
+  sleep 10s
+  run $prefix docker exec -it mounter dd if=/dev/urandom of=/data/random bs=10M count=1
   assert_output --partial "10 M"
 }
 
 @test "get a checksum for that binary file" {
-  run $prefix -t 'docker exec -it mounter /bin/bash -c "md5sum /data/random > /data/checksum"'
+  run $prefix docker exec -it mounter /bin/bash -c "md5sum /data/random > /data/checksum"
   assert_success
 }
 
 @test "Confirm checksum" {
-  run $prefix -t docker exec -it mounter md5sum --check /data/checksum
+  run $prefix docker exec -it mounter md5sum --check /data/checksum
   assert_success
 }
 
@@ -65,17 +68,27 @@ load test_helper
 }
 
 @test "Confirm textfile contents are still on the volume" {
-  run $prefix -t docker exec -it mounter cat /data/foo.txt
+  run $prefix docker exec -it mounter cat /data/foo.txt
   assert_line --partial "testdata"
 }
 
 @test "Confirm checksum persistence" {
-  run $prefix -t docker exec -it mounter md5sum --check /data/checksum
+  run $prefix docker exec -it mounter md5sum --check /data/checksum
   assert_success
 }
 
 @test "Destroy container" {
   run $prefix docker stop mounter
   run $prefix docker rm mounter
+  assert_success
+}
+
+@test "Disable plugin on node 1" {
+  run $prefix1 docker plugin disable $driver
+  assert_success
+}
+
+@test "Remove plugin on node 1" {
+  run $prefix1 docker plugin rm $driver
   assert_success
 }
